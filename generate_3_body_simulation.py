@@ -13,8 +13,8 @@ Body = namedtuple('Body', ['m', 'x', 'y', 'dot_x', 'dot_y'])
 
 
 def _create_random_body():
-    m = 10 ** np.random.uniform(-1.0, 1.0)
-    x0, y0 = np.random.uniform(-1.0, 1.0), np.random.uniform(-1.0, 1.0)
+    m = 10 ** np.random.uniform(-0.5, 1.0)
+    x0, y0 = np.random.uniform(-10.0, 10.0), np.random.uniform(-10.0, 10.0)
     dot_x0, dot_y0 = np.random.uniform(-1.0, 1.0), np.random.uniform(-1.0, 1.0)
 
     return Body(m, x0, y0, dot_x0, dot_y0)
@@ -56,10 +56,18 @@ def _move_body(b, Fx, Fy, dt):
     return new_b
 
 
+def _calc_center_of_mass(bodies):
+    sum_mass = np.sum([b.m for b in bodies])
+    x = np.sum([b.m * b.x for b in bodies]) / sum_mass
+    y = np.sum([b.m * b.y for b in bodies]) / sum_mass
+    return x, y
+
+
 def _calc_trajectories(b0, b1, b2, dt, n_steps):
     trj_0 = [[b0.x, b0.y]]
     trj_1 = [[b1.x, b1.y]]
     trj_2 = [[b2.x, b2.y]]
+    trj_cm = [_calc_center_of_mass([b0, b1, b2])]
 
     for step in range(n_steps):
         # Forces
@@ -86,7 +94,15 @@ def _calc_trajectories(b0, b1, b2, dt, n_steps):
         trj_1.append([b1.x, b1.y])
         trj_2.append([b2.x, b2.y])
 
-    return np.array(trj_0), np.array(trj_1), np.array(trj_2)
+        trj_cm.append(_calc_center_of_mass([b0, b1, b2]))
+
+    trj_cm = np.array(trj_cm)
+
+    trj_0 = np.array(trj_0) - trj_cm
+    trj_1 = np.array(trj_1) - trj_cm
+    trj_2 = np.array(trj_2) - trj_cm
+
+    return trj_0, trj_1, trj_2
 
 
 def _draw_animation(t0, t1, t2, b0, b1, b2, fps, duration):
@@ -112,13 +128,20 @@ def _draw_animation(t0, t1, t2, b0, b1, b2, fps, duration):
 
     # Initial points
     plt.plot(t0[0, 0], t0[0, 1], marker='x', color='k')
-    plt.plot(t1[0, 0], t1[0, 1], marker='x', color='k')
-    plt.plot(t2[0, 0], t2[0, 1], marker='x', color='k')
+    plt.plot(t1[0, 0], t1[0, 1], marker='x', color='navy')
+    plt.plot(t2[0, 0], t2[0, 1], marker='x', color='lime')
 
     # Trajectories
-    line_0, = plt.plot(t0[0, 0], t0[0, 1], label='body 0')
-    line_1, = plt.plot(t1[0, 0], t1[0, 1], label='body 1')
-    line_2, = plt.plot(t2[0, 0], t2[0, 1], label='body 2')
+    line_00, = plt.plot(t0[0, 0], t0[0, 1], color='k', alpha=0.2)
+    line_01, = plt.plot(t0[0, 0], t0[0, 1], color='k', alpha=0.8)
+
+    line_10, = plt.plot(t1[0, 0], t1[0, 1], color='navy', alpha=0.2)
+    line_11, = plt.plot(t1[0, 0], t1[0, 1], color='navy', alpha=0.8)
+
+    line_20, = plt.plot(t2[0, 0], t2[0, 1], color='lime', alpha=0.2)
+    line_21, = plt.plot(t2[0, 0], t2[0, 1], color='lime', alpha=0.8)
+
+    trace_len = int(t0.shape[0] * 0.1)
 
     # Final points
     point_0, = plt.plot(t0[0, 0], t0[0, 1], marker='o',
@@ -134,15 +157,28 @@ def _draw_animation(t0, t1, t2, b0, b1, b2, fps, duration):
         # Finding correct point to visualise
         i = int(data_len * float(n_frame + 1) / n_frames)
 
-        line_0.set_data(t0[:i, 0], t0[:i, 1])
-        line_1.set_data(t1[:i, 0], t1[:i, 1])
-        line_2.set_data(t2[:i, 0], t2[:i, 1])
+        if i > trace_len:
+            line_01.set_data(t0[i - trace_len:i, 0], t0[i - trace_len:i, 1])
+            line_11.set_data(t1[i - trace_len:i, 0], t1[i - trace_len:i, 1])
+            line_21.set_data(t2[i - trace_len:i, 0], t2[i - trace_len:i, 1])
+
+            line_00.set_data(t0[:i, 0], t0[:i, 1])
+            line_10.set_data(t1[:i, 0], t1[:i, 1])
+            line_20.set_data(t2[:i, 0], t2[:i, 1])
+        else:
+            line_01.set_data(t0[:i, 0], t0[:i, 1])
+            line_11.set_data(t1[:i, 0], t1[:i, 1])
+            line_21.set_data(t2[:i, 0], t2[:i, 1])
+
+            line_00.set_data(t0[:i, 0], t0[:i, 1])
+            line_10.set_data(t1[:i, 0], t1[:i, 1])
+            line_20.set_data(t2[:i, 0], t2[:i, 1])
 
         point_0.set_data(t0[i - 1, 0], t0[i - 1, 1])
         point_1.set_data(t1[i - 1, 0], t1[i - 1, 1])
         point_2.set_data(t2[i - 1, 0], t2[i - 1, 1])
 
-        return line_0, line_1, line_2, point_0, point_1, point_2
+        return line_00, line_01, line_10, line_11, line_20, line_21, point_0, point_1, point_2
 
     trj_anim = animation.FuncAnimation(fig, aimation_step, blit=True, frames=range(n_frames))
     return trj_anim
@@ -161,7 +197,7 @@ def _draw_low_res_trajectory(downscaled_trj, n_bins):
     return img
 
 
-def _calc_interestness_score(t0, t1, t2, n_bins=100):
+def _calc_interestness_score(t0, t1, t2, n_bins=30):
     min_x, max_x = np.min((t0[:, 0], t1[:, 0], t2[:, 0])), np.max((t0[:, 0], t1[:, 0], t2[:, 0]))
     min_y, max_y = np.min((t0[:, 1], t1[:, 1], t2[:, 1])), np.max((t0[:, 1], t1[:, 1], t2[:, 1]))
 
@@ -180,13 +216,16 @@ def _calc_interestness_score(t0, t1, t2, n_bins=100):
 def main(args):
     is_verbose = args.verbose
 
+    draft_dt = args.dt * 10
     score = 0
     while(score < args.min_score or score > args.max_score):
         b0, b1, b2 = _create_random_body(), _create_random_body(), _create_random_body()
-        t0, t1, t2 = _calc_trajectories(b0, b1, b2, args.dt, int(args.duration / args.dt))
+        t0, t1, t2 = _calc_trajectories(b0, b1, b2, draft_dt, int(args.duration / draft_dt))
         score = _calc_interestness_score(t0, t1, t2)
         if is_verbose:
             print ('Interestness score: {}'.format(score))
+
+    t0, t1, t2 = _calc_trajectories(b0, b1, b2, args.dt, int(args.duration / args.dt))
 
     if is_verbose:
         print ('Drawing animation')
@@ -198,9 +237,17 @@ def main(args):
         return
     if is_verbose:
         print('Uploading')
+
+    info_msg = 'Initial states:\n'
+
+    for b in [b0, b1, b2]:
+        info_msg += '    m: {:.3f} x: {:.3f} y: {:.3f} vx: {:.3f} vy: {:.3f}\n'.format(
+            b.m, b.x, b.y, b.dot_x, b.dot_y)
+    info_msg += 'Interest-ness score: {}'.format(score)
+
     bot = telegram.Bot(args.token)
     bot.send_animation(chat_id=args.channel_name, animation=open('./simulation.mp4', 'rb'),
-                       caption='Hello world!')
+                       caption=info_msg)
 
 
 if __name__ == '__main__':
