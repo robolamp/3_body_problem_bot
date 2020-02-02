@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 from collections import namedtuple
-from matplotlib.animation import FFMpegWriter
+from matplotlib.animation import FFMpegWriter, FFMpegFileWriter
 
 Body = namedtuple('Body', ['m', 'x', 'y', 'dot_x', 'dot_y'])
 
@@ -230,6 +230,7 @@ def main(args):
     if is_verbose:
         print ('Drawing animation')
     new_animation = _draw_animation(t0, t1, t2, b0, b1, b2, args.fps, args.duration)
+
     writer = FFMpegWriter(fps=args.fps, metadata=dict(artist='robolamp'), bitrate=1800)
     new_animation.save("./simulation.mp4", writer=writer)
 
