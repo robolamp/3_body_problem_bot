@@ -247,7 +247,7 @@ def main(args):
 
     bot = telegram.Bot(args.token)
     bot.send_animation(chat_id=args.channel_name, animation=open('./simulation.mp4', 'rb'),
-                       caption=info_msg)
+                       caption=info_msg, timeout=120)
 
 
 if __name__ == '__main__':
