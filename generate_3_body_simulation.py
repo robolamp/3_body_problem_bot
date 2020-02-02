@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 from collections import namedtuple
-from matplotlib.animation import FFMpegWriter, FFMpegFileWriter
+from matplotlib.animation import FFMpegWriter
 
 Body = namedtuple('Body', ['m', 'x', 'y', 'dot_x', 'dot_y'])
 
