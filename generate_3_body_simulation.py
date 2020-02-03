@@ -21,7 +21,7 @@ def _create_random_body():
 
 
 def _calc_force(b0, b1):
-    # G = 6.674 * (10 ** -14)
+    # I'm sorry
     G = 1.0
 
     dx = b1.x - b0.x
