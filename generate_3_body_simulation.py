@@ -13,9 +13,13 @@ Body = namedtuple('Body', ['m', 'x', 'y', 'dot_x', 'dot_y'])
 
 
 def _create_random_body():
-    m = 10 ** np.random.uniform(-0.5, 1.0)
+    m = 10 ** np.random.uniform(-1.0, 1.0)
     x0, y0 = np.random.uniform(-10.0, 10.0), np.random.uniform(-10.0, 10.0)
-    dot_x0, dot_y0 = np.random.uniform(-1.0, 1.0), np.random.uniform(-1.0, 1.0)
+
+    theta = np.random.uniform(0.0, 2.0 * np.pi)
+    v0 = np.random.uniform(0.0, 1.0)
+
+    dot_x0, dot_y0 = v0 * np.cos(theta), v0 * np.sin(theta)
 
     return Body(m, x0, y0, dot_x0, dot_y0)
 
