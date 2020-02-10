@@ -109,7 +109,7 @@ def _calc_trajectories(b0, b1, b2, dt, n_steps):
     return trj_0, trj_1, trj_2
 
 
-def _draw_animation(t0, t1, t2, b0, b1, b2, fps, duration):
+def _draw_animation(t0, t1, t2, b0, b1, b2, fps, duration, time_scale):
     data_len = t0.shape[0]
 
     fig = plt.figure(figsize=(7, 7))
@@ -127,7 +127,8 @@ def _draw_animation(t0, t1, t2, b0, b1, b2, fps, duration):
 
     plt.xlabel('X', fontsize=15)
     plt.ylabel('Y', fontsize=15)
-    plt.title('Gravitational interaction of 3 random bodies', fontsize=20)
+    plt.title('Gravitational interaction of 3 random bodies\ntime x{}'.format(time_scale),
+              fontsize=15)
     plt.grid()
 
     # Initial points
@@ -205,13 +206,12 @@ def _calc_interestness_score(t0, t1, t2, n_bins=30):
     min_x, max_x = np.min((t0[:, 0], t1[:, 0], t2[:, 0])), np.max((t0[:, 0], t1[:, 0], t2[:, 0]))
     min_y, max_y = np.min((t0[:, 1], t1[:, 1], t2[:, 1])), np.max((t0[:, 1], t1[:, 1], t2[:, 1]))
 
-    dx = (max_x - min_x) / n_bins
-    dy = (max_y - min_y) / n_bins
+    step = np.max(((max_x - min_x), (max_y - min_y))) / n_bins
 
     all_trjs_img =\
-        _draw_low_res_trajectory(_downscale_trajectory(t0, min_x, min_y, dx, dy), n_bins) +\
-        _draw_low_res_trajectory(_downscale_trajectory(t1, min_x, min_y, dx, dy), n_bins) +\
-        _draw_low_res_trajectory(_downscale_trajectory(t2, min_x, min_y, dx, dy), n_bins)
+        _draw_low_res_trajectory(_downscale_trajectory(t0, min_x, min_y, step, step), n_bins) +\
+        _draw_low_res_trajectory(_downscale_trajectory(t1, min_x, min_y, step, step), n_bins) +\
+        _draw_low_res_trajectory(_downscale_trajectory(t2, min_x, min_y, step, step), n_bins)
 
     score = np.where(all_trjs_img > 1)[0].size
     return score
@@ -229,11 +229,20 @@ def main(args):
         if is_verbose:
             print ('Interestness score: {}'.format(score))
 
+    if is_verbose:
+        print ('Final simulation')
     t0, t1, t2 = _calc_trajectories(b0, b1, b2, args.dt, int(args.duration / args.dt))
 
     if is_verbose:
         print ('Drawing animation')
-    new_animation = _draw_animation(t0, t1, t2, b0, b1, b2, args.fps, args.duration)
+
+    time_scale = int(args.duration / args.video_duration)
+    t0 = t0[::time_scale, :]
+    t1 = t1[::time_scale, :]
+    t2 = t2[::time_scale, :]
+
+    new_animation = _draw_animation(t0, t1, t2, b0, b1, b2, args.fps, args.video_duration,
+                                    time_scale)
 
     writer = FFMpegWriter(fps=args.fps, metadata=dict(artist='robolamp'), bitrate=1800)
     new_animation.save("./simulation.mp4", writer=writer)
@@ -251,8 +260,8 @@ def main(args):
     info_msg += 'Interest-ness score: {}'.format(score)
 
     bot = telegram.Bot(args.token)
-    bot.send_animation(chat_id=args.channel_name, animation=open('./simulation.mp4', 'rb'),
-                       caption=info_msg, timeout=120)
+    bot.send_video(chat_id=args.channel_name, video=open('./simulation.mp4', 'rb'),
+                   caption=info_msg, timeout=120)
 
 
 if __name__ == '__main__':
@@ -260,7 +269,8 @@ if __name__ == '__main__':
         description='Script which is generating random but "interesting" 3 bodies simulation')
     p.add_argument('--dt', type=float, default=0.001, help='Simulation step')
     p.add_argument('--fps', type=int, default=30, help='Frames per second')
-    p.add_argument('--duration', type=float, default=60.0, help='Simulation duration')
+    p.add_argument('--duration', type=float, default=30.0, help='Simulation duration')
+    p.add_argument('--video-duration', type=float, default=30.0, help='Video duration')
     p.add_argument('--min-score', type=int, default=20, help='Minimal "interest" score')
     p.add_argument('--max-score', type=int, default=100, help='Maximal "interest" score')
     p.add_argument('-V', '--verbose', action='store_true', help='Print debug info')
