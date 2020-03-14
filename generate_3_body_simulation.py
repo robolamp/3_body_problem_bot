@@ -206,7 +206,8 @@ def _calc_interestness_score(t0, t1, t2, n_bins=30):
     min_x, max_x = np.min((t0[:, 0], t1[:, 0], t2[:, 0])), np.max((t0[:, 0], t1[:, 0], t2[:, 0]))
     min_y, max_y = np.min((t0[:, 1], t1[:, 1], t2[:, 1])), np.max((t0[:, 1], t1[:, 1], t2[:, 1]))
 
-    step = np.max(((max_x - min_x), (max_y - min_y))) / n_bins
+    field_size = np.max(((max_x - min_x), (max_y - min_y)))
+    step = field_size / n_bins
 
     all_trjs_img =\
         _draw_low_res_trajectory(_downscale_trajectory(t0, min_x, min_y, step, step), n_bins) +\
@@ -214,7 +215,7 @@ def _calc_interestness_score(t0, t1, t2, n_bins=30):
         _draw_low_res_trajectory(_downscale_trajectory(t2, min_x, min_y, step, step), n_bins)
 
     score = np.where(all_trjs_img > 1)[0].size
-    return score
+    return score, field_size
 
 
 def main(args):
@@ -222,12 +223,13 @@ def main(args):
 
     draft_dt = args.dt * 10
     score = 0
-    while(score < args.min_score or score > args.max_score):
+    field_size = args.max_field_size * 2
+    while((score < args.min_score or score > args.max_score) or field_size > args.max_field_size):
         b0, b1, b2 = _create_random_body(), _create_random_body(), _create_random_body()
         t0, t1, t2 = _calc_trajectories(b0, b1, b2, draft_dt, int(args.duration / draft_dt))
-        score = _calc_interestness_score(t0, t1, t2)
+        score, field_size = _calc_interestness_score(t0, t1, t2)
         if is_verbose:
-            print ('Interestness score: {}'.format(score))
+            print ('Interestness score: {} Size: {}'.format(score, field_size))
 
     if is_verbose:
         print ('Final simulation')
@@ -272,7 +274,8 @@ if __name__ == '__main__':
     p.add_argument('--duration', type=float, default=30.0, help='Simulation duration')
     p.add_argument('--video-duration', type=float, default=30.0, help='Video duration')
     p.add_argument('--min-score', type=int, default=20, help='Minimal "interest" score')
-    p.add_argument('--max-score', type=int, default=100, help='Maximal "interest" score')
+    p.add_argument('--max-score', type=int, default=75, help='Maximal "interest" score')
+    p.add_argument('--max-field-size', type=float, default=50.0, help='Maximal field size')
     p.add_argument('-V', '--verbose', action='store_true', help='Print debug info')
     p.add_argument('-T', '--token', type=str, default=None, help='Token for your bot')
     p.add_argument('-N', '--channel-name', type=str, default=None, help='Channel name')
