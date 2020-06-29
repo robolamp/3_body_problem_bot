@@ -8,7 +8,7 @@ import matplotlib.animation as animation
 
 from collections import namedtuple
 from matplotlib.animation import FFMpegWriter
-
+from scipy.integrate import solve_ivp
 
 class Body(object):
     def __init__(self, m, x0, y0, dot_x0, dot_y0):
@@ -53,15 +53,25 @@ def _calc_trajectories(bodies, dt, n_steps):
     masses_matrix = np.array([masses_vec, ] * n_bodies)
     M = masses_matrix * masses_matrix.transpose()
 
-    X = np.array([body.trj_x[-1] for body in bodies])
-    Y = np.array([body.trj_y[-1] for body in bodies])
+    X_0 = np.array([body.trj_x[-1] for body in bodies])
+    Y_0 = np.array([body.trj_y[-1] for body in bodies])
 
-    dot_X = np.array([body.dot_x0 for body in bodies])
-    dot_Y = np.array([body.dot_y0 for body in bodies])
+    dot_X_0 = np.array([body.dot_x0 for body in bodies])
+    dot_Y_0 = np.array([body.dot_y0 for body in bodies])
 
-    for _ in range(n_steps):
-        Y_matrix = np.array([Y, ] * n_bodies)
+    timestamps = np.linspace(0, dt * n_steps, n_steps)
+
+    init_state = np.concatenate([X_0, Y_0, dot_X_0, dot_Y_0])
+
+    def iter(t, state):
+        X = state[0:n_bodies]
+        Y = state[n_bodies:2 *n_bodies]
+
+        dot_X = state[2 * n_bodies:3 *n_bodies]
+        dot_Y = state[3 * n_bodies:]
+
         X_matrix = np.array([X, ] * n_bodies)
+        Y_matrix = np.array([Y, ] * n_bodies)
 
         dist_X = X_matrix - X_matrix.transpose()
         dist_Y = Y_matrix - Y_matrix.transpose()
@@ -71,22 +81,19 @@ def _calc_trajectories(bodies, dt, n_steps):
         F_x = 1. * M * dist_X / (R ** 3)
         F_x[np.isnan(F_x)] = 0.
         F_x[np.isinf(F_x)] = 0.
-
         dot_dot_X = np.sum(F_x, axis=1) / masses_vec
-        X += dot_X * dt + dot_dot_X * (dt ** 2) * 0.5
-        dot_X += dot_dot_X * dt
 
         F_y = 1. * M * dist_Y / (R ** 3)
         F_y[np.isnan(F_y)] = 0.
         F_y[np.isinf(F_y)] = 0.
-
         dot_dot_Y = np.sum(F_y, axis=1) / masses_vec
-        Y += dot_Y * dt + dot_dot_Y * (dt ** 2) * 0.5
-        dot_Y += dot_dot_Y * dt
 
-        for i in range(n_bodies):
-            bodies[i].trj_x = np.append(bodies[i].trj_x, X[i])
-            bodies[i].trj_y = np.append(bodies[i].trj_y, Y[i])
+        return np.concatenate([dot_X, dot_Y, dot_dot_X, dot_dot_Y])
+
+    sol = solve_ivp(iter, [0, dt * n_steps], init_state, t_eval=timestamps, method='DOP853')
+    for i in range(n_bodies):
+            bodies[i].trj_x = sol.y[i, :]
+            bodies[i].trj_y = sol.y[n_bodies + i, :]
 
     trj_cm_x, trj_cm_y = _calc_center_of_mass_trjs(bodies)
 
