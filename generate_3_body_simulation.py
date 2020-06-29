@@ -130,15 +130,15 @@ def _draw_animation(trjs, bodies, fps, duration, time_scale):
     lines_full = []
     lines_fin = []
     for i in range(n_bodies):
-        point, = plt.plot(trjs[i, 0, 0], trjs[i, 0, 1], marker='o', color='k',
-                          markersize=int(10 * bodies[i].m ** (1.0/3)))
         line_full, = plt.plot(trjs[i, 0, 0], trjs[i, 0, 1],
                              alpha=0.2, color=colors[i])
         line_fin, = plt.plot(trjs[i, 0, 0], trjs[i, 0, 1],
                              alpha=0.8, color=colors[i])
-        points.append(point)
+        point, = plt.plot(trjs[i, 0, 0], trjs[i, 0, 1], marker='o', color='k',
+                          markersize=int(10 * bodies[i].m ** (1.0/3)))
         lines_full.append(line_full)
         lines_fin.append(line_fin)
+        points.append(point)
 
     trace_len = int(trjs.shape[1] * 0.1)
 
@@ -147,9 +147,6 @@ def _draw_animation(trjs, bodies, fps, duration, time_scale):
     def aimation_step(n_frame):
         # Finding correct point to visualise
         i = int(data_len * float(n_frame + 1) / n_frames)
-
-        for j in range(n_bodies):
-            points[j].set_data(trjs[j, i - 1, 0], trjs[j, i - 1, 1])
 
         if i > trace_len:
             for j in range(n_bodies):
@@ -161,7 +158,10 @@ def _draw_animation(trjs, bodies, fps, duration, time_scale):
                 lines_fin[j].set_data(trjs[j, :i, 0], trjs[j, :i, 1])
                 lines_full[j].set_data(trjs[j, :i, 0], trjs[j, :i, 1])
 
-        return points + lines_full + lines_fin
+        for j in range(n_bodies):
+            points[j].set_data(trjs[j, i - 1, 0], trjs[j, i - 1, 1])
+
+        return lines_full + lines_fin + points
 
     trj_anim = animation.FuncAnimation(fig, aimation_step, blit=True, frames=range(n_frames))
     return trj_anim
