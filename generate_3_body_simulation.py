@@ -242,7 +242,7 @@ def main(args):
 
     for body in bodies:
         info_msg += '    m: {:.3f} x: {:.3f} y: {:.3f} vx: {:.3f} vy: {:.3f}\n'.format(
-            body.m, body.x, body.y, body.dot_x0, body.dot_y0)
+            body.m, body.trj_x[0], body.trj_y[0], body.dot_x0, body.dot_y0)
     info_msg += 'Interest-ness score: {}'.format(score)
 
     bot = telegram.Bot(args.token)
