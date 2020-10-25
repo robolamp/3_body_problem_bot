@@ -1,0 +1,15 @@
+FROM ubuntu:latest
+
+ENV DEBIAN_FRONTEND=noninteractive 
+
+RUN apt-get update && apt-get install -y python3-pip ffmpeg git cron
+RUN pip3 install numpy scipy matplotlib python-telegram-bot
+
+WORKDIR "/home"
+
+RUN git clone https://github.com/robolamp/3_body_problem_bot.git
+RUN touch /var/log/cron.log
+
+RUN (crontab -l ; echo "0 */12 * * * python3 /home/3_body_problem_bot/generate_3_body_simulation.py -V -T [TOKEN] -N [BOT_NAME] --fps 15 --min-score 24 --duration 150 >> /var/log/cron.log") | crontab
+
+CMD cron && tail -f /var/log/cron.log
