@@ -25,7 +25,7 @@ class Body(object):
 
 
 def _create_random_body():
-    m = 10 ** np.random.uniform(-1.0, 1.0)
+    m = 10 ** np.random.uniform(-1.0, 0.0)
     x0, y0 = np.random.uniform(-10.0, 10.0), np.random.uniform(-10.0, 10.0)
 
     theta = np.random.uniform(0.0, 2.0 * np.pi)
@@ -102,7 +102,7 @@ def _calc_trajectories(bodies, dt, n_steps):
     return trjs
 
 
-def _draw_animation(trjs, bodies, fps, duration, time_scale):
+def _draw_animation(trjs, bodies, fps, duration, time_scale, track_indices):
     n_bodies = len(bodies)
     colors = ['k', 'navy', 'lime']
     colors = (colors * (n_bodies // len(colors) + 1))[:n_bodies]
@@ -112,8 +112,8 @@ def _draw_animation(trjs, bodies, fps, duration, time_scale):
     fig = plt.figure(figsize=(7, 7))
 
     # Finding correct borders for the graph
-    x_min, x_max = np.min((trjs[:, :, 0])), np.max((trjs[:, :, 0]))
-    y_min, y_max = np.min((trjs[:, :, 1])), np.max((trjs[:, :, 1]))
+    x_min, x_max = np.min((trjs[track_indices, :, 0])), np.max((trjs[track_indices, :, 0]))
+    y_min, y_max = np.min((trjs[track_indices, :, 1])), np.max((trjs[track_indices, :, 1]))
 
     x_mean = (x_min + x_max) * 0.5
     y_mean = (y_min + y_max) * 0.5
@@ -203,6 +203,31 @@ def _calc_interestness_score(trajectories, n_bins=30):
     score = np.where(all_trjs_img > 1)[0].size
     return score, field_size
 
+def _calc_mass_in_field(bodies, mass_keep_in_field):
+    if mass_keep_in_field >= 1.0:
+        return list(range(len(bodies)))
+
+    mass_list = [{'mass': body.m, 'index': i} for body, i in zip(bodies, range(len(bodies)))]
+    
+    mass_list = sorted(mass_list, key=lambda mass: -mass['mass'])
+
+
+    mass_sum = 0
+    for mass in mass_list:
+        mass_sum += mass['mass']
+        mass.update({'mass_sum': mass_sum})
+
+    
+    track_indices = []
+    for mass in mass_list:
+        sum_mass_share = mass['mass_sum'] / mass_sum
+
+        print('sum_mass_share: {}'.format(sum_mass_share))
+        if sum_mass_share < mass_keep_in_field:
+            track_indices.append(mass['index'])
+
+    return sorted(track_indices)
+
 
 def main(args):
     is_verbose = args.verbose
@@ -210,10 +235,12 @@ def main(args):
     draft_dt = args.dt * 10
     score = 0
     field_size = args.max_field_size * 2
-    while((score < args.min_score or score > args.max_score) or field_size > args.max_field_size):
+    while((score <= args.min_score or score > args.max_score) or field_size > args.max_field_size):
         bodies = [_create_random_body() for _ in range(args.n_bodies)]
         trjs = _calc_trajectories(bodies, draft_dt, int(args.duration / draft_dt))
-        score, field_size = _calc_interestness_score(trjs)
+        track_indices = _calc_mass_in_field(bodies, args.mass_keep_in_field)
+        score, field_size = _calc_interestness_score(trjs[track_indices])
+
         if is_verbose:
             print ('Interestness score: {} Size: {}'.format(score, field_size))
 
@@ -228,7 +255,7 @@ def main(args):
     trjs = trjs[:, ::time_scale, :]
 
     new_animation = _draw_animation(trjs, bodies, args.fps, args.video_duration,
-                                    time_scale)
+                                    time_scale, track_indices)
 
     writer = FFMpegWriter(fps=args.fps, metadata=dict(artist='robolamp'), bitrate=1800)
     new_animation.save("./simulation.mp4", writer=writer)
@@ -261,6 +288,7 @@ if __name__ == '__main__':
     p.add_argument('--min-score', type=int, default=20, help='Minimal "interest" score')
     p.add_argument('--max-score', type=int, default=75, help='Maximal "interest" score')
     p.add_argument('--max-field-size', type=float, default=50.0, help='Maximal field size')
+    p.add_argument('--mass-keep-in-field', type=float, default=1.0, help='Share of mass to keep in field')
     p.add_argument('-V', '--verbose', action='store_true', help='Print debug info')
     p.add_argument('-T', '--token', type=str, default=None, help='Token for your bot')
     p.add_argument('-N', '--channel-name', type=str, default=None, help='Channel name')
