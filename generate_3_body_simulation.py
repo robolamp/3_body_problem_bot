@@ -43,7 +43,7 @@ def _calc_center_of_mass_trjs(bodies):
     return trj_x, trj_y
 
 
-def _calc_trajectories(bodies, dt, n_steps):
+def _calc_trajectories(bodies, dt, n_steps, track_indices):
     for b in bodies:
         b.reset_trj()
 
@@ -95,7 +95,7 @@ def _calc_trajectories(bodies, dt, n_steps):
             bodies[i].trj_x = sol.y[i, :]
             bodies[i].trj_y = sol.y[n_bodies + i, :]
 
-    trj_cm_x, trj_cm_y = _calc_center_of_mass_trjs(bodies)
+    trj_cm_x, trj_cm_y = _calc_center_of_mass_trjs([b for b, i in zip(bodies, range(n_bodies)) if i in track_indices])
 
     trjs = np.array([np.array([
         b.trj_x - trj_cm_x, b.trj_y - trj_cm_y]).transpose() for b in bodies])
@@ -132,6 +132,8 @@ def _draw_animation(trjs, bodies, fps, duration, time_scale, track_indices):
     for i in range(n_bodies):
         plt.plot(trjs[i, 0, 0], trjs[i, 0, 1], marker='x', color=colors[i])
 
+    mass_scale = 10.0 / np.mean([body.m for body in bodies])
+
     # Trajectories and final points
     points = []
     lines_full = []
@@ -142,7 +144,7 @@ def _draw_animation(trjs, bodies, fps, duration, time_scale, track_indices):
         line_fin, = plt.plot(trjs[i, 0, 0], trjs[i, 0, 1],
                              alpha=0.8, color=colors[i])
         point, = plt.plot(trjs[i, 0, 0], trjs[i, 0, 1], marker='o', color='k',
-                          markersize=int(10 * bodies[i].m ** (1.0/3)))
+                          markersize=int(mass_scale * bodies[i].m ** (1.0/3)))
         lines_full.append(line_full)
         lines_fin.append(line_fin)
         points.append(point)
@@ -237,8 +239,8 @@ def main(args):
     field_size = args.max_field_size * 2
     while((score <= args.min_score or score > args.max_score) or field_size > args.max_field_size):
         bodies = [_create_random_body() for _ in range(args.n_bodies)]
-        trjs = _calc_trajectories(bodies, draft_dt, int(args.duration / draft_dt))
         track_indices = _calc_mass_in_field(bodies, args.mass_keep_in_field)
+        trjs = _calc_trajectories(bodies, draft_dt, int(args.duration / draft_dt), track_indices)
         score, field_size = _calc_interestness_score(trjs[track_indices])
 
         if is_verbose:
@@ -246,7 +248,7 @@ def main(args):
 
     if is_verbose:
         print ('Final simulation')
-    trjs = _calc_trajectories(bodies, args.dt, int(args.duration / args.dt))
+    trjs = _calc_trajectories(bodies, args.dt, int(args.duration / args.dt), track_indices)
 
     if is_verbose:
         print ('Drawing animation')
